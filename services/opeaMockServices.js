@@ -105,3 +105,143 @@ module.exports = {
   mockOpeaActionItemExtractor,
   mockOpeaAgendaGenerator,
 };
+// const fetch = require("node-fetch"); // npm install node-fetch
+
+// const OLLAMA_API_URL = "http://localhost:11434/api/generate"; // या /api/chat अगर मॉडल चैट के लिए फाइन-ट्यून है
+// const OLLAMA_MODEL = "deepseek-r1:1.5b"; // या जो मॉडल आपने डाउनलोड किया है
+
+// async function generateWithOllama(
+//   prompt,
+//   systemMessage = "You are a helpful assistant."
+// ) {
+//   try {
+//     const response = await fetch(OLLAMA_API_URL, {
+//       method: "POST",
+//       headers: {
+//         "Content-Type": "application/json",
+//       },
+//       body: JSON.stringify({
+//         model: OLLAMA_MODEL,
+//         prompt: prompt,
+//         system: systemMessage, // कुछ मॉडल 'system' प्रॉम्प्ट को सपोर्ट करते हैं
+//         stream: false, // true करने पर स्ट्रीमिंग रिस्पांस मिलेगा
+//       }),
+//     });
+
+//     if (!response.ok) {
+//       const errorBody = await response.text();
+//       throw new Error(`Ollama API error: ${response.status} ${errorBody}`);
+//     }
+
+//     const data = await response.json();
+//     return data.response.trim(); // Ollama का रिस्पांस स्ट्रक्चर देखें
+//   } catch (error) {
+//     console.error("[Ollama] Error:", error.message);
+//     throw error; // या एक डिफ़ॉल्ट मान लौटाएं
+//   }
+// }
+
+// const realOpeaSummarizer = async (fullTranscriptText) => {
+//   console.log("[Ollama Summarizer] Generating summary...");
+//   if (!fullTranscriptText || fullTranscriptText.trim() === "") {
+//     return "Cannot summarize empty transcript.";
+//   }
+//   const prompt = `Please summarize the following meeting transcript:\n\n${fullTranscriptText}`;
+//   try {
+//     const summary = await generateWithOllama(
+//       prompt,
+//       "You are an expert meeting summarizer."
+//     );
+//     console.log("[Ollama Summarizer] Summary generated.");
+//     return summary;
+//   } catch (error) {
+//     return `Summary generation failed. (For: ${fullTranscriptText.substring(
+//       0,
+//       30
+//     )}...)`;
+//   }
+// };
+
+// const realOpeaActionItemExtractor = async (fullTranscriptText) => {
+//   console.log("[Ollama Action Item Extractor] Extracting action items...");
+//   if (!fullTranscriptText || fullTranscriptText.trim() === "") return [];
+
+//   // Ollama से JSON आउटपुट प्राप्त करना थोड़ा मुश्किल हो सकता है, प्रॉम्प्ट को ध्यान से बनाना होगा
+//   const prompt = `
+//     From the following meeting transcript, extract all action items.
+//     For each action item, identify the task and who it is assigned to (if mentioned).
+//     Format the output as a JSON array of objects. Each object should have "task" and "assignedTo" keys.
+//     Example: [{"task": "Research new vendors", "assignedTo": "Alice"}]
+//     If no action items are found, return an empty array [].
+
+//     Transcript:
+//     ---
+//     ${fullTranscriptText}
+//     ---
+
+//     JSON Output:
+//   `;
+//   try {
+//     const responseText = await generateWithOllama(
+//       prompt,
+//       "You extract action items into JSON format."
+//     );
+//     console.log("[Ollama Action Item Extractor] Raw response:", responseText);
+//     let items = [];
+//     try {
+//       // LLM कभी-कभी JSON के आसपास अतिरिक्त टेक्स्ट दे सकता है
+//       const jsonMatch = responseText.match(/(\[.*\]|\{.*\})/s);
+//       if (jsonMatch && jsonMatch[0]) {
+//         items = JSON.parse(jsonMatch[0]);
+//         if (
+//           !Array.isArray(items) &&
+//           items.action_items &&
+//           Array.isArray(items.action_items)
+//         ) {
+//           items = items.action_items; // यदि मॉडल ने ऑब्जेक्ट में रैप किया है
+//         } else if (!Array.isArray(items)) {
+//           items = []; // यदि यह एक वैध JSON ऐरे नहीं है
+//         }
+//       }
+//     } catch (e) {
+//       console.error(
+//         "[Ollama Action Item Extractor] Failed to parse JSON:",
+//         e,
+//         "Response:",
+//         responseText
+//       );
+//       items = []; // पार्सिंग में विफल होने पर खाली ऐरे
+//     }
+//     return items.map((item, index) => ({
+//       ...item,
+//       id: `ai-${Date.now() + index}`,
+//       status: "pending",
+//     }));
+//   } catch (error) {
+//     return [];
+//   }
+// };
+
+// const realOpeaAgendaGenerator = async (topic, participants = []) => {
+//   console.log(
+//     `[Ollama Agenda Generator] Generating agenda for topic: ${topic}`
+//   );
+//   const participantList =
+//     participants.length > 0 ? `Participants: ${participants.join(", ")}.` : "";
+//   const prompt = `
+//     Create a suggested meeting agenda for the topic: "${topic}".
+//     ${participantList}
+//     The agenda should include 3-5 key discussion points with estimated durations.
+//     Format it clearly.
+//   `;
+//   try {
+//     const agenda = await generateWithOllama(
+//       prompt,
+//       "You are a helpful meeting agenda generator."
+//     );
+//     console.log("[Ollama Agenda Generator] Agenda generated.");
+//     return agenda;
+//   } catch (error) {
+//     return `Agenda generation failed for topic: ${topic}.`;
+//   }
+// };
