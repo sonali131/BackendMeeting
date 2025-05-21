@@ -71,57 +71,60 @@ const server = http.createServer(app);
 // --- BEGIN UPDATED CORS CONFIGURATION ---
 
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://front-meeting-opea-uvr3.vercel.app", // Your main production frontend
-  "https://front-meeting-opea-uvr3-2nl3s2fmt-sonali-mishras-projects.vercel.app", // The specific preview URL from the error
+  "http://localhost:5173", // For your local Vite development server
+  "https://front-meeting-opea-uvr3.vercel.app", // Your main production frontend URL
+  "https://front-meeting-opea-uvr3-2nl3s2fmt-sonali-mishras-projects.vercel.app", // A previous preview URL
+  "https://front-meeting-opea-uvr3-nrbf3dw69-sonali-mishras-projects.vercel.app", // <<<--- NEW PREVIEW URL FROM YOUR LAST ERROR
   // Add any other static preview URLs if you know them
 ];
 
+// This allows you to add more origins via an environment variable on Render
 if (
   process.env.FRONTEND_URL &&
   !allowedOrigins.includes(process.env.FRONTEND_URL)
 ) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
+  allowedOrigins.push(process.env.FRONTEND_URL.trim()); // .trim() to remove any accidental whitespace
 }
 console.log("Allowed origins for HTTP and Socket.IO:", allowedOrigins);
 
 // Explicit CORS options for Express to handle preflight requests properly
 const expressCorsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests) OR if origin is in the list
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      // Allow if origin is in the list or if no origin (e.g. server-to-server, curl)
       callback(null, true);
     } else {
       console.error(
-        `Express CORS error: Origin ${origin} not allowed by expressCorsOptions.`
+        `Express CORS error: Origin ${origin} not allowed by expressCorsOptions. Allowed list:`,
+        allowedOrigins
       );
       callback(new Error("Not allowed by CORS policy for Express"));
     }
   },
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", // Crucially, include OPTIONS
-  allowedHeaders: "Content-Type,Authorization,X-Requested-With", // Add common headers. Adjust if your frontend sends others.
+  allowedHeaders: "Content-Type,Authorization,X-Requested-With", // Common headers
   credentials: true, // If you use cookies/auth headers
-  optionsSuccessStatus: 200, // Or 204. 200 is sometimes more compatible.
+  optionsSuccessStatus: 200, // Can be 204, but 200 is often more compatible
 };
 
-// Apply Express CORS middleware GENERICALLY FIRST
+// Apply Express CORS middleware GENERICALLY FIRST for all requests
 app.use(cors(expressCorsOptions));
 
 // THEN, EXPLICITLY HANDLE ALL OPTIONS requests with these CORS options.
-// This is often a good way to ensure preflights are handled.
+// This is a robust way to ensure preflights are handled.
 console.log("Setting up global OPTIONS handler with CORS options.");
-app.options("*", cors(expressCorsOptions)); // <--- UNCOMMENT AND USE THIS
+app.options("*", cors(expressCorsOptions));
 
 // --- END UPDATED CORS CONFIGURATION ---
 
-app.use(express.json()); // This should come AFTER CORS usually, but let's test
+app.use(express.json()); // Body parser for JSON requests
 
 // Your API routes
 app.use("/api/meetings", meetingAPIRoutes);
 
 app.get("/", (req, res) => res.send("IntelliMeet OPEA Backend is running!"));
 
-// Socket.IO Configuration (can remain the same)
+// Socket.IO Configuration
 const io = new Server(server, {
   cors: {
     origin: function (origin, callback) {
@@ -130,7 +133,13 @@ const io = new Server(server, {
       } else {
         const msg =
           "The CORS policy for Socket.IO does not allow access from the specified Origin.";
-        console.error(msg, "Origin:", origin);
+        console.error(
+          msg,
+          "Origin:",
+          origin,
+          "Allowed list for Socket.IO:",
+          allowedOrigins
+        );
         return callback(new Error(msg), false);
       }
     },
