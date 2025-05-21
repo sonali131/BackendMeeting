@@ -62,49 +62,71 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors"); // For Express CORS
 const meetingAPIRoutes = require("./routes/meetingRoutes").router;
-const meetingsDB = require("./routes/meetingRoutes").meetings; // This will reference your in-memory store
-const { mockOpeaSTT } = require("./services/opeaMockServices"); // Ensure this path is correct
+const meetingsDB = require("./routes/meetingRoutes").meetings;
+const { mockOpeaSTT } = require("./services/opeaMockServices");
 
 const app = express();
 const server = http.createServer(app);
 
-// Socket.IO CORS Configuration
+// --- BEGIN UPDATED CORS CONFIGURATION ---
+
 const allowedOrigins = [
-  "http://localhost:5173", // For your local Vite development server
-  "https://front-meeting-opea-uvr3.vercel.app", // Your deployed Vercel frontend URL
-  // Add any other domains here if you have them
+  "http://localhost:5173",
+  "https://front-meeting-opea-uvr3.vercel.app", // Your main production frontend
+  "https://front-meeting-opea-uvr3-2nl3s2fmt-sonali-mishras-projects.vercel.app", // The specific preview URL from the error
+  // Add any other static preview URLs if you know them
 ];
 
-// You can also set an environment variable on Render
 if (
   process.env.FRONTEND_URL &&
   !allowedOrigins.includes(process.env.FRONTEND_URL)
 ) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
-console.log("Allowed origins for Socket.IO:", allowedOrigins);
+console.log("Allowed origins for HTTP and Socket.IO:", allowedOrigins);
 
+// Explicit CORS options for Express to handle preflight requests properly
+const expressCorsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      // Allow if origin is in the list or if no origin (e.g. server-to-server, curl)
+      callback(null, true);
+    } else {
+      console.error(`Express CORS error: Origin ${origin} not allowed.`);
+      callback(new Error("Not allowed by CORS policy for Express"));
+    }
+  },
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", // Crucially, include OPTIONS
+  allowedHeaders: "Content-Type,Authorization,X-Requested-With", // Add common headers. Adjust if your frontend sends others.
+  credentials: true, // If you use cookies/auth headers
+  optionsSuccessStatus: 200, // Or 204. 200 is sometimes more compatible.
+};
+
+// Apply Express CORS middleware
+app.use(cors(expressCorsOptions));
+// Express needs to be able to handle OPTIONS requests explicitly for preflights on all routes if cors doesn't handle it perfectly
+// app.options('*', cors(expressCorsOptions)); // This line can sometimes help if the above isn't enough for all preflights
+
+// Socket.IO CORS Configuration
 const io = new Server(server, {
   cors: {
+    // Socket.IO uses its own cors config, but we use the same allowedOrigins list
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
         const msg =
-          "The CORS policy for this site does not allow access from the specified Origin.";
+          "The CORS policy for Socket.IO does not allow access from the specified Origin.";
         console.error(msg, "Origin:", origin);
         return callback(new Error(msg), false);
       }
-      return callback(null, true);
     },
     methods: ["GET", "POST"],
-    // credentials: true, // Set to true if you are sending cookies or authorization headers
+    credentials: true,
   },
 });
 
-// Express CORS (for HTTP requests)
-// It's good to make this more specific too, but for now, this is okay if Socket.IO is configured correctly
-app.use(cors({ origin: allowedOrigins })); // Use the same origins for Express
+// --- END UPDATED CORS CONFIGURATION ---
 
 app.use(express.json());
 app.use("/api/meetings", meetingAPIRoutes);
@@ -118,7 +140,6 @@ io.on("connection", (socket) => {
     socket.join(meetingId);
     console.log(`User ${socket.id} joined meeting: ${meetingId}`);
     if (meetingsDB[meetingId]) {
-      // Use meetingsDB
       socket.emit("meetingState", meetingsDB[meetingId]);
     } else {
       console.warn(`Meeting ${meetingId} not found during joinMeeting.`);
@@ -127,7 +148,6 @@ io.on("connection", (socket) => {
 
   socket.on("audioActivity", async ({ meetingId, audioDataReference }) => {
     if (!meetingsDB[meetingId]) {
-      // Use meetingsDB
       console.warn(`Meeting ${meetingId} not found for audio activity.`);
       return socket.emit("opeaError", {
         message: `Meeting ${meetingId} not found for audio activity.`,
@@ -136,10 +156,9 @@ io.on("connection", (socket) => {
     try {
       const transcriptChunks = await mockOpeaSTT(audioDataReference);
       if (meetingsDB[meetingId].transcript) {
-        // Ensure the transcript array exists
         meetingsDB[meetingId].transcript.push(...transcriptChunks);
       } else {
-        meetingsDB[meetingId].transcript = [...transcriptChunks]; // Initialize it if not
+        meetingsDB[meetingId].transcript = [...transcriptChunks];
       }
       io.to(meetingId).emit("transcriptUpdate", transcriptChunks);
     } catch (error) {
