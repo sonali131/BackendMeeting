@@ -92,7 +92,9 @@ const expressCorsOptions = {
       // Allow if origin is in the list or if no origin (e.g. server-to-server, curl)
       callback(null, true);
     } else {
-      console.error(`Express CORS error: Origin ${origin} not allowed.`);
+      console.error(
+        `Express CORS error: Origin ${origin} not allowed by expressCorsOptions.`
+      );
       callback(new Error("Not allowed by CORS policy for Express"));
     }
   },
@@ -102,15 +104,26 @@ const expressCorsOptions = {
   optionsSuccessStatus: 200, // Or 204. 200 is sometimes more compatible.
 };
 
-// Apply Express CORS middleware
+// Apply Express CORS middleware GENERICALLY FIRST
 app.use(cors(expressCorsOptions));
-// Express needs to be able to handle OPTIONS requests explicitly for preflights on all routes if cors doesn't handle it perfectly
-// app.options('*', cors(expressCorsOptions)); // This line can sometimes help if the above isn't enough for all preflights
 
-// Socket.IO CORS Configuration
+// THEN, EXPLICITLY HANDLE ALL OPTIONS requests with these CORS options.
+// This is often a good way to ensure preflights are handled.
+console.log("Setting up global OPTIONS handler with CORS options.");
+app.options("*", cors(expressCorsOptions)); // <--- UNCOMMENT AND USE THIS
+
+// --- END UPDATED CORS CONFIGURATION ---
+
+app.use(express.json()); // This should come AFTER CORS usually, but let's test
+
+// Your API routes
+app.use("/api/meetings", meetingAPIRoutes);
+
+app.get("/", (req, res) => res.send("IntelliMeet OPEA Backend is running!"));
+
+// Socket.IO Configuration (can remain the same)
 const io = new Server(server, {
   cors: {
-    // Socket.IO uses its own cors config, but we use the same allowedOrigins list
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
@@ -125,13 +138,6 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-
-// --- END UPDATED CORS CONFIGURATION ---
-
-app.use(express.json());
-app.use("/api/meetings", meetingAPIRoutes);
-
-app.get("/", (req, res) => res.send("IntelliMeet OPEA Backend is running!"));
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
