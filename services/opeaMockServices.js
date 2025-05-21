@@ -108,8 +108,7 @@ module.exports = {
 // const fetch = require("node-fetch"); // npm install node-fetch
 
 // const OLLAMA_API_URL = "http://localhost:11434/api/generate"; // या /api/chat अगर मॉडल चैट के लिए फाइन-ट्यून है
-// const OLLAMA_MODEL = "deepseek-r1:1.5b"; // या जो मॉडल आपने डाउनलोड किया है
-
+// const OLLAMA_MODEL = "deepseek-r1:1.5b"; //
 // async function generateWithOllama(
 //   prompt,
 //   systemMessage = "You are a helpful assistant."
@@ -137,7 +136,7 @@ module.exports = {
 //     return data.response.trim(); // Ollama का रिस्पांस स्ट्रक्चर देखें
 //   } catch (error) {
 //     console.error("[Ollama] Error:", error.message);
-//     throw error; // या एक डिफ़ॉल्ट मान लौटाएं
+//     throw error; //
 //   }
 // }
 
@@ -166,7 +165,7 @@ module.exports = {
 //   console.log("[Ollama Action Item Extractor] Extracting action items...");
 //   if (!fullTranscriptText || fullTranscriptText.trim() === "") return [];
 
-//   // Ollama से JSON आउटपुट प्राप्त करना थोड़ा मुश्किल हो सकता है, प्रॉम्प्ट को ध्यान से बनाना होगा
+//   //
 //   const prompt = `
 //     From the following meeting transcript, extract all action items.
 //     For each action item, identify the task and who it is assigned to (if mentioned).
@@ -189,7 +188,7 @@ module.exports = {
 //     console.log("[Ollama Action Item Extractor] Raw response:", responseText);
 //     let items = [];
 //     try {
-//       // LLM कभी-कभी JSON के आसपास अतिरिक्त टेक्स्ट दे सकता है
+//       //
 //       const jsonMatch = responseText.match(/(\[.*\]|\{.*\})/s);
 //       if (jsonMatch && jsonMatch[0]) {
 //         items = JSON.parse(jsonMatch[0]);
@@ -198,9 +197,9 @@ module.exports = {
 //           items.action_items &&
 //           Array.isArray(items.action_items)
 //         ) {
-//           items = items.action_items; // यदि मॉडल ने ऑब्जेक्ट में रैप किया है
+//           items = items.action_items; //
 //         } else if (!Array.isArray(items)) {
-//           items = []; // यदि यह एक वैध JSON ऐरे नहीं है
+//           items = []; //
 //         }
 //       }
 //     } catch (e) {
@@ -210,7 +209,7 @@ module.exports = {
 //         "Response:",
 //         responseText
 //       );
-//       items = []; // पार्सिंग में विफल होने पर खाली ऐरे
+//       items = []; //
 //     }
 //     return items.map((item, index) => ({
 //       ...item,
